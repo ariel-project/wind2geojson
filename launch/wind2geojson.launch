@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+    <node name="wind2geojson"
+          pkg="wind2geojson"
+          type="wind2geojson_node"
+          output="screen">
+        <rosparam command="load" file="$(find wind2geojson)/config/config.yaml"/>
+    </node>
+</launch>

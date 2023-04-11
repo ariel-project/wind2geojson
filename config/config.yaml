@@ -1,0 +1,8 @@
+# Enter the .geojson desired absolute filepath with "/" at the end
+full_geojson_filepath: "/home/thales/windestimation_ws/src/wind2geojson/logs/"
+
+# Enter the navsat_fix GPS topic
+navsat_subscriber: "/mavros/global_position/global"
+
+# Enter the according topic for the estimated wind velocity
+wind_velocity_subscriber: "/estimated_wind_velocity"
