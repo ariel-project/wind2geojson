@@ -5,4 +5,4 @@ full_geojson_filepath: "/home/thales/windestimation_ws/src/wind2geojson/logs/"
 navsat_subscriber: "/mavros/global_position/global"
 
 # Enter the according topic for the estimated wind velocity
-wind_velocity_subscriber: "/estimated_wind_velocity"
+wind_velocity_subscriber: "/windmaster_readings"

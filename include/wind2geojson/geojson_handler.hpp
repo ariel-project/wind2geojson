@@ -8,12 +8,17 @@
 
 #include <jsoncpp/json/json.h>
 
+#include <boost/date_time.hpp>
+#include <boost/chrono.hpp>
+
 #include <iomanip>
 #include <ctime>
 #include <sstream>
 
 class GeojsonHandler
 {
+    typedef boost::posix_time::ptime Time;
+
     private:
         Json::StreamWriterBuilder builder;
         
@@ -35,7 +40,8 @@ class GeojsonHandler
         ~GeojsonHandler(){}
 
         void addPoint(std::vector<double> nav_sat,
-                      std::vector<double> wind_vel)
+                      std::vector<double> wind_vel,
+                      boost::posix_time::ptime time_stamp)
         {
             Json::Value point;
             point[0] = nav_sat[0];
@@ -50,13 +56,13 @@ class GeojsonHandler
             Json::Value geometry;
             geometry["type"] = "Point";
             geometry["coordinates"] = point;
+            geometry["wind"] = wind;
 
             Json::Value feature;
             feature["type"] = "Feature";
             feature["properties"] = Json::Value();
             feature["geometry"] = geometry;
-            feature["wind"] = wind;
-            feature["stamp"] = getCurrentTime().str();
+            feature["stamp"] = boost::posix_time::to_iso_extended_string(time_stamp);
 
             feature_array[feature_index++] = feature;
         }
@@ -66,20 +72,11 @@ class GeojsonHandler
             feature_collection["features"] = feature_array;
             const std::string json_file = Json::writeString(builder, feature_collection);
 
-            std::ofstream output_file(file_path + getCurrentTime().str() + ".geojson");
+            std::ofstream output_file(file_path +
+                                      boost::posix_time::to_iso_extended_string(boost::posix_time::second_clock::local_time()) +
+                                      ".geojson");
             output_file << json_file;
             output_file.close();
-        }
-
-        std::ostringstream getCurrentTime()
-        {
-            auto t = std::time(nullptr);
-            auto tm = *std::localtime(&t);
-
-            std::ostringstream oss;
-            oss << std::put_time(&tm, "%d-%m-%Y %H-%M-%S");
-
-            return oss;
         }
 
         void setNewFilepath(std::string path)

@@ -1,8 +1,8 @@
 #include <wind2geojson/ros_handler.hpp>
 
 RosHandler::RosHandler(ros::NodeHandle &nh) :
-    nh(nh),
-    GeojsonHandler("../logs/")
+    GeojsonHandler("../logs/"),
+    nh(nh)
 {
     std::string temp_str;
     std::string node_name = ros::this_node::getName();
@@ -35,7 +35,8 @@ void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
                               const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel)
 {
     addPoint({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude},
-             {wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z});
+             {wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z},
+             wind_vel->header.stamp.toBoost());
 }
 
 RosHandler::~RosHandler()
