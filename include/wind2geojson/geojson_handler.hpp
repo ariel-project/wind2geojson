@@ -73,7 +73,7 @@ class GeojsonHandler
             const std::string json_file = Json::writeString(builder, feature_collection);
 
             std::ofstream output_file(file_path +
-                                      boost::posix_time::to_iso_extended_string(boost::posix_time::second_clock::local_time()) +
+                                      boost::posix_time::to_iso_string(boost::posix_time::second_clock::local_time()) +
                                       ".geojson");
             output_file << json_file;
             output_file.close();
