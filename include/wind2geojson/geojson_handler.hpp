@@ -65,7 +65,6 @@ class GeojsonHandler
             feature["type"] = "Feature";
             feature["properties"] = properties;
             feature["geometry"] = geometry;
-//            feature["stamp"] = boost::posix_time::to_iso_extended_string(time_stamp);
 
             feature_array[feature_index++] = feature;
         }
