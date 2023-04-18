@@ -53,16 +53,19 @@ class GeojsonHandler
             wind[1] = wind_vel[1];
             wind[2] = wind_vel[2];
 
+            Json::Value properties;
+            properties["time"] = boost::posix_time::to_iso_extended_string(time_stamp);
+            properties["wind"] = wind;
+
             Json::Value geometry;
             geometry["type"] = "Point";
             geometry["coordinates"] = point;
-            geometry["wind"] = wind;
 
             Json::Value feature;
             feature["type"] = "Feature";
-            feature["properties"] = Json::Value();
+            feature["properties"] = properties;
             feature["geometry"] = geometry;
-            feature["stamp"] = boost::posix_time::to_iso_extended_string(time_stamp);
+//            feature["stamp"] = boost::posix_time::to_iso_extended_string(time_stamp);
 
             feature_array[feature_index++] = feature;
         }
