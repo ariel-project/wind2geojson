@@ -17,6 +17,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <boost/bind.hpp>
+#include <boost/chrono.hpp>
+
+#include <eigen3/Eigen/Dense>
 
 class RosHandler : public GeojsonHandler
 {
@@ -29,8 +32,16 @@ class RosHandler : public GeojsonHandler
         typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::NavSatFix,
         geometry_msgs::Vector3Stamped> MySyncPolicy;
         typedef message_filters::Synchronizer<MySyncPolicy> Sync;
+        typedef boost::chrono::steady_clock::duration Duration;
 
         boost::shared_ptr<Sync> _sync_ptr;
+        boost::chrono::steady_clock::time_point last_sample_time;
+
+        Eigen::Vector3d nav_sat_sum;
+        Eigen::Vector3d vel_sum;
+
+        int num_of_samples;
+        double period_secs;
 
     public:
         RosHandler(ros::NodeHandle &nh);

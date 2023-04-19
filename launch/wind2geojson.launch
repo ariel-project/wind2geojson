@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>
+    <arg name="full_geojson_filepath" default="$(find wind2geojson)/logs/"/>
     <node name="wind2geojson"
           pkg="wind2geojson"
           type="wind2geojson_node"
-          output="screen">
+          output="screen"
+          args="
+            _full_geojson_filepath:=$(arg full_geojson_filepath)">
         <rosparam command="load" file="$(find wind2geojson)/config/config.yaml"/>
     </node>
 </launch>
