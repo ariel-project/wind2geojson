@@ -11,6 +11,10 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
     std::string temp_str;
     std::string node_name = ros::this_node::getName();
 
+    if (!nh.getParam(node_name + "/period_secs", period_secs))
+        throw std::runtime_error(BOLD_RED "[ ERROR] parameter period_secs doesn't exist."
+                                          "Please, set the parameter in congig.yaml");
+
     if (!nh.getParam(node_name + "/full_geojson_filepath", temp_str) || temp_str.empty())
         throw std::runtime_error(BOLD_RED "[ ERROR] parameter full_geojson_filepath doesn't exist."
                                           "Please, set the parameter in congig.yaml");
@@ -38,28 +42,37 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
 void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
                               const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel)
 {
-    boost::chrono::milliseconds dt = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::steady_clock::now() - last_sample_time);
-    double dt_secs = dt.count()/1000.0;
-
-    if ( dt_secs > period_secs )
+    if (period_secs == 0.0)
     {
-        nav_sat_sum /= double(num_of_samples);
-        vel_sum /= double(num_of_samples);
-
-        addPoint({nav_sat_sum[0], nav_sat_sum[1], nav_sat_sum[2]},
-                 {vel_sum[0], vel_sum[1], vel_sum[2]},
+        addPoint({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude},
+                 {wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z},
                  wind_vel->header.stamp.toBoost());
-
-        num_of_samples = 0;
-        nav_sat_sum = Eigen::Vector3d::Zero();
-        vel_sum = Eigen::Vector3d::Zero();
-        last_sample_time = boost::chrono::steady_clock::now();
     }
     else
     {
-        num_of_samples++;
-        nav_sat_sum += Eigen::Vector3d({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude});
-        vel_sum += Eigen::Vector3d({wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z});
+        boost::chrono::milliseconds dt = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::steady_clock::now() - last_sample_time);
+        double dt_secs = dt.count()/1000.0;
+
+        if ( dt_secs > period_secs )
+        {
+            nav_sat_sum /= double(num_of_samples);
+            vel_sum /= double(num_of_samples);
+
+            addPoint({nav_sat_sum[0], nav_sat_sum[1], nav_sat_sum[2]},
+                     {vel_sum[0], vel_sum[1], vel_sum[2]},
+                     wind_vel->header.stamp.toBoost());
+
+            num_of_samples = 0;
+            nav_sat_sum = Eigen::Vector3d::Zero();
+            vel_sum = Eigen::Vector3d::Zero();
+            last_sample_time = boost::chrono::steady_clock::now();
+        }
+        else
+        {
+            num_of_samples++;
+            nav_sat_sum += Eigen::Vector3d({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude});
+            vel_sum += Eigen::Vector3d({wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z});
+        }
     }
 }
 

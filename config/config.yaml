@@ -1,5 +1,5 @@
-# Enter the .geojson desired absolute filepath with "/" at the end
-#full_geojson_filepath: "/home/thales/windestimation_ws/src/wind2geojson/logs/"
+# Enter the desired period [secs]. If set to 0.0,
+period_secs: 2.0
 
 # Enter the navsat_fix GPS topic
 navsat_subscriber: "/mavros/global_position/global"
