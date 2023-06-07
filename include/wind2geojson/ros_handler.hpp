@@ -25,6 +25,7 @@ class RosHandler : public GeojsonHandler
 {
     private:
         ros::NodeHandle &nh;
+        ros::ServiceServer start_saving;
 
         message_filters::Subscriber<sensor_msgs::NavSatFix> navsat_sub;
         message_filters::Subscriber<geometry_msgs::Vector3Stamped> wind_velocity_sub;
@@ -49,6 +50,9 @@ class RosHandler : public GeojsonHandler
 
         void mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
                           const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel);
+
+        void startRecording();
+        void stopRecording();
 };
 
 #endif // ROS_HANDLER_HPP

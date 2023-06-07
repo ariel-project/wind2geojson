@@ -11,6 +11,11 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
     std::string temp_str;
     std::string node_name = ros::this_node::getName();
 
+    if (!nh.getParam(node_name + "/start_service_name", temp_str))
+        throw std::runtime_error(BOLD_RED "[ ERROR] parameter start_service_name doesn't exist."
+                                          "Please, set the parameter in config.yaml");
+//    start_saving = nh.advertiseService()
+
     if (!nh.getParam(node_name + "/period_secs", period_secs))
         throw std::runtime_error(BOLD_RED "[ ERROR] parameter period_secs doesn't exist."
                                           "Please, set the parameter in congig.yaml");
@@ -36,6 +41,8 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
     _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
     _sync_ptr->registerCallback(boost::bind(&RosHandler::mainCallback, this, _1, _2));
 
+    last_sample_time = boost::chrono::steady_clock::now();
+
     std::cout << BOLD_YELLOW "[ WARN] all topics configured." << std::endl;
 }
 
@@ -43,11 +50,9 @@ void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
                               const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel)
 {
     if (period_secs == 0.0)
-    {
         addPoint({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude},
                  {wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z},
-                 wind_vel->header.stamp.toBoost());
-    }
+                 boost::posix_time::second_clock::local_time());
     else
     {
         boost::chrono::milliseconds dt = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::steady_clock::now() - last_sample_time);
@@ -60,7 +65,7 @@ void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
 
             addPoint({nav_sat_sum[0], nav_sat_sum[1], nav_sat_sum[2]},
                      {vel_sum[0], vel_sum[1], vel_sum[2]},
-                     wind_vel->header.stamp.toBoost());
+                     boost::posix_time::second_clock::local_time());
 
             num_of_samples = 0;
             nav_sat_sum = Eigen::Vector3d::Zero();
@@ -74,6 +79,17 @@ void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
             vel_sum += Eigen::Vector3d({wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z});
         }
     }
+}
+
+void RosHandler::startRecording()
+{
+    _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
+    _sync_ptr->registerCallback(boost::bind(&RosHandler::mainCallback, this, _1, _2));
+}
+
+void RosHandler::stopRecording()
+{
+    _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
 }
 
 RosHandler::~RosHandler()
