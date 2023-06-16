@@ -72,13 +72,16 @@ class GeojsonHandler
         void writeToFile()
         {
             feature_collection["features"] = feature_array;
-            const std::string json_file = Json::writeString(builder, feature_collection);
 
+            const std::string json_file = Json::writeString(builder, feature_collection);
             std::ofstream output_file(file_path +
                                       boost::posix_time::to_iso_string(boost::posix_time::second_clock::local_time()) +
                                       ".geojson");
             output_file << json_file;
             output_file.close();
+
+            feature_array.clear();
+            feature_index = 0;
         }
 
         void setNewFilepath(std::string path)

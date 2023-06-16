@@ -7,7 +7,9 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     geometry_msgs
     mavros_msgs
+    std_srvs
     message_filters
+    message_generation
 )
 
 find_package(PkgConfig REQUIRED)
@@ -15,7 +17,20 @@ pkg_search_module(JSONCPP jsoncpp)
 
 find_package(Boost REQUIRED)
 
-catkin_package( DEPENDS roscpp geometry_msgs mavros_msgs message_filters )
+add_service_files(
+ FILES
+ start_stop_recording.srv
+)
+
+generate_messages(
+    DEPENDENCIES
+)
+
+catkin_package(
+    INCLUDE_DIRS include
+    LIBRARIES ${PROJECT_NAME}_lib
+    CATKIN_DEPENDS roscpp geometry_msgs mavros_msgs std_srvs message_filters message_generation
+)
 
 include_directories(include
   ${catkin_INCLUDE_DIRS}
@@ -35,6 +50,10 @@ set(${PROJECT_NAME}_SOURCES
 add_library(${PROJECT_NAME}_lib
     ${${PROJECT_NAME}_HEADERS}
     ${${PROJECT_NAME}_SOURCES}
+)
+
+add_dependencies(${PROJECT_NAME}_lib
+    ${PROJECT_NAME}_generate_messages_cpp
 )
 
 add_executable(${PROJECT_NAME}_node src/main.cpp)

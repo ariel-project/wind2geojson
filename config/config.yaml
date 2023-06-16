@@ -1,8 +1,8 @@
-# Enter the desired period [secs]. If set to 0.0,
-period_secs: 100.0
-
 # Enter the navsat_fix GPS topic
 navsat_subscriber: "/mavros/global_position/global"
 
 # Enter the according topic for the estimated wind velocity
 wind_velocity_subscriber: "/mlp/wind_speed"
+
+# Enter the according service name
+start_service_name: "/start_stop_recording"

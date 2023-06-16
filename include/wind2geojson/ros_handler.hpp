@@ -11,6 +11,8 @@
 
 #include <sensor_msgs/NavSatFix.h>
 #include <geometry_msgs/Vector3Stamped.h>
+#include <std_srvs/Empty.h>
+#include <wind2geojson/start_stop_recording.h>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -36,13 +38,17 @@ class RosHandler : public GeojsonHandler
         typedef boost::chrono::steady_clock::duration Duration;
 
         boost::shared_ptr<Sync> _sync_ptr;
-        boost::chrono::steady_clock::time_point last_sample_time;
+        boost::chrono::steady_clock::time_point period_tp;
+        boost::chrono::steady_clock::time_point stop_tp;
 
         Eigen::Vector3d nav_sat_sum;
         Eigen::Vector3d vel_sum;
+        Eigen::Matrix3d cov_matrix;
 
         int num_of_samples;
         double period_secs;
+        double stop_time;
+        bool is_saving;
 
     public:
         RosHandler(ros::NodeHandle &nh);
@@ -50,6 +56,8 @@ class RosHandler : public GeojsonHandler
 
         void mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
                           const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel);
+        bool startStopCallback(wind2geojson::start_stop_recordingRequest &req,
+                               wind2geojson::start_stop_recordingResponse &res);
 
         void startRecording();
         void stopRecording();

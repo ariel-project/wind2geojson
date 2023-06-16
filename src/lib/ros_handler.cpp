@@ -5,8 +5,11 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
     nh(nh),
     nav_sat_sum(Eigen::Vector3d::Zero()),
     vel_sum(Eigen::Vector3d::Zero()),
+    cov_matrix(Eigen::Matrix3d::Zero()),
     num_of_samples(0),
-    period_secs(2.0)
+    period_secs(60.0),
+    stop_time(300),
+    is_saving(false)
 {
     std::string temp_str;
     std::string node_name = ros::this_node::getName();
@@ -14,7 +17,7 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
     if (!nh.getParam(node_name + "/start_service_name", temp_str))
         throw std::runtime_error(BOLD_RED "[ ERROR] parameter start_service_name doesn't exist."
                                           "Please, set the parameter in config.yaml");
-//    start_saving = nh.advertiseService()
+    start_saving = nh.advertiseService(temp_str, &RosHandler::startStopCallback, this);
 
     if (!nh.getParam(node_name + "/period_secs", period_secs))
         throw std::runtime_error(BOLD_RED "[ ERROR] parameter period_secs doesn't exist."
@@ -25,6 +28,69 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
                                           "Please, set the parameter in congig.yaml");
     setNewFilepath(temp_str);
     temp_str.clear();
+
+    _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
+    _sync_ptr->registerCallback(boost::bind(&RosHandler::mainCallback, this, _1, _2));
+}
+
+void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
+                              const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel)
+{
+    boost::chrono::milliseconds stop_duration = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::steady_clock::now() - stop_tp);
+    double stop_duration_secs = stop_duration.count()/1000.0;
+
+    if (stop_duration_secs > stop_time)
+        stopRecording();
+    else
+    {
+        boost::chrono::milliseconds period_duration= boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::steady_clock::now() - period_tp);
+        double period_duration_secs = period_duration.count()/1000.0;
+
+        if ( period_duration_secs > period_secs )
+        {
+            nav_sat_sum /= double(num_of_samples);
+            vel_sum /= double(num_of_samples);
+
+            addPoint({nav_sat_sum[0], nav_sat_sum[1], nav_sat_sum[2]},
+                     {vel_sum[0], vel_sum[1], vel_sum[2]},
+                     boost::posix_time::second_clock::local_time());
+
+            num_of_samples = 0;
+            nav_sat_sum = Eigen::Vector3d::Zero();
+            vel_sum = Eigen::Vector3d::Zero();
+            period_tp = boost::chrono::steady_clock::now();
+        }
+        else
+        {
+            num_of_samples++;
+            nav_sat_sum += Eigen::Vector3d({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude});
+            vel_sum += Eigen::Vector3d({wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z});
+        }
+    }
+}
+
+bool RosHandler::startStopCallback(wind2geojson::start_stop_recordingRequest &req,
+                                   wind2geojson::start_stop_recordingResponse &res)
+{
+    period_secs = req.period_secs;
+    stop_time = req.stop_time;
+
+    if ( !is_saving )
+        startRecording();
+    else
+        stopRecording();
+
+    res.success = is_saving;
+
+    return true;
+}
+
+void RosHandler::startRecording()
+{
+    is_saving = true;
+
+    std::string temp_str;
+    std::string node_name = ros::this_node::getName();
 
     if (!nh.getParam(node_name + "/navsat_subscriber", temp_str) || temp_str.empty())
         throw std::runtime_error(BOLD_RED "[ ERROR] parameter navsat_subscriber doesn't exist."
@@ -38,62 +104,27 @@ RosHandler::RosHandler(ros::NodeHandle &nh) :
     wind_velocity_sub.subscribe(nh, temp_str, 5);
     temp_str.clear();
 
-    _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
-    _sync_ptr->registerCallback(boost::bind(&RosHandler::mainCallback, this, _1, _2));
-
-    last_sample_time = boost::chrono::steady_clock::now();
+    period_tp = stop_tp = boost::chrono::steady_clock::now();
 
     std::cout << BOLD_YELLOW "[ WARN] all topics configured." << std::endl;
-}
 
-void RosHandler::mainCallback(const sensor_msgs::NavSatFix::ConstPtr &nav_sat,
-                              const geometry_msgs::Vector3Stamped::ConstPtr &wind_vel)
-{
-    if (period_secs == 0.0)
-        addPoint({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude},
-                 {wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z},
-                 boost::posix_time::second_clock::local_time());
-    else
-    {
-        boost::chrono::milliseconds dt = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::steady_clock::now() - last_sample_time);
-        double dt_secs = dt.count()/1000.0;
-
-        if ( dt_secs > period_secs )
-        {
-            nav_sat_sum /= double(num_of_samples);
-            vel_sum /= double(num_of_samples);
-
-            addPoint({nav_sat_sum[0], nav_sat_sum[1], nav_sat_sum[2]},
-                     {vel_sum[0], vel_sum[1], vel_sum[2]},
-                     boost::posix_time::second_clock::local_time());
-
-            num_of_samples = 0;
-            nav_sat_sum = Eigen::Vector3d::Zero();
-            vel_sum = Eigen::Vector3d::Zero();
-            last_sample_time = boost::chrono::steady_clock::now();
-        }
-        else
-        {
-            num_of_samples++;
-            nav_sat_sum += Eigen::Vector3d({nav_sat->longitude, nav_sat->latitude, nav_sat->altitude});
-            vel_sum += Eigen::Vector3d({wind_vel->vector.x, wind_vel->vector.y, wind_vel->vector.z});
-        }
-    }
-}
-
-void RosHandler::startRecording()
-{
-    _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
-    _sync_ptr->registerCallback(boost::bind(&RosHandler::mainCallback, this, _1, _2));
+    num_of_samples = 0;
+    nav_sat_sum = Eigen::Vector3d::Zero();
+    vel_sum = Eigen::Vector3d::Zero();
 }
 
 void RosHandler::stopRecording()
 {
-    _sync_ptr.reset(new Sync(MySyncPolicy(5), navsat_sub, wind_velocity_sub));
+    is_saving = false;
+
+    navsat_sub.unsubscribe();
+    wind_velocity_sub.unsubscribe();
+
+    std::cerr << BOLD_YELLOW "[ WARN] writting geojson file." << std::endl;
+    writeToFile();
 }
 
 RosHandler::~RosHandler()
 {
-    writeToFile();
     std::cerr << BOLD_YELLOW "[ WARN] shutting down node!" << std::endl;
 }

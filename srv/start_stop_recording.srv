@@ -1,0 +1,4 @@
+float32 period_secs
+float32 stop_time
+---
+bool success
